@@ -1,0 +1,32 @@
+{
+  "name": "@degenlab/bot",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --sourcemap --clean --no-dts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@degenlab/card-renderer": "workspace:*",
+    "@degenlab/database": "workspace:*",
+    "@degenlab/ledger": "workspace:*",
+    "@degenlab/market-data": "workspace:*",
+    "@degenlab/pnl": "workspace:*",
+    "@degenlab/shared-types": "workspace:*",
+    "@degenlab/solana-adapter": "workspace:*",
+    "@hono/node-server": "^1.19.0",
+    "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.44.5",
+    "grammy": "^1.36.3",
+    "hono": "^4.9.8",
+    "pino": "^9.9.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,16 @@
+node_modules
+dist
+.env
+.env.local
+*.log
+.DS_Store
+coverage
+.turbo
+.pnpm-store
+.idea
+.vscode
+*.tsbuildinfo
+tmp
+.cache
+data
+*.db

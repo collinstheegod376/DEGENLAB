@@ -1,0 +1,15 @@
+{
+  "name": "@degenlab/ledger",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@degenlab/database": "workspace:*",
+    "@degenlab/pnl": "workspace:*",
+    "@degenlab/shared-types": "workspace:*",
+    "drizzle-orm": "^0.44.5",
+    "nanoid": "^5.1.5"
+  }
+}

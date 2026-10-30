@@ -1,0 +1,11 @@
+{
+  "name": "@degenlab/market-data",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@degenlab/shared-types": "workspace:*"
+  }
+}

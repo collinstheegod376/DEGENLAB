@@ -1,0 +1,16 @@
+type: web
+name: degenlab
+ports:
+  - port: 8000
+    protocol: http
+health_checks:
+  - type: http
+    path: /healthz
+    port: 8000
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "8000"
+  - name: DEGENLAB_ASSETS_DIR
+    value: /app/packages/card-renderer/assets

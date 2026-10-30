@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared-types" },
+    { "path": "./packages/pnl" },
+    { "path": "./packages/solana-adapter" },
+    { "path": "./packages/market-data" },
+    { "path": "./packages/database" },
+    { "path": "./packages/ledger" },
+    { "path": "./packages/card-renderer" },
+    { "path": "./apps/bot" }
+  ]
+}

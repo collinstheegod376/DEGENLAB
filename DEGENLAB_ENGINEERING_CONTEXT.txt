@@ -1,0 +1,612 @@
+DEGENLAB — TELEGRAM MARKET-PRACTICE BOT
+ENGINEERING CONTEXT / BUILD SPECIFICATION
+Version: 1.0
+Deployment target: Koyeb
+Primary interface: Telegram bot
+Suggested language: TypeScript
+
+============================================================
+1. PRODUCT SUMMARY
+============================================================
+
+DegenLab is a Telegram-native crypto market-practice application. A user can paste a Solana token mint address (CA), inspect public market information, open and close practice positions using an in-app virtual balance, review portfolio performance, and generate shareable PnL cards.
+
+The app is designed for market education and software testing. It must be transparent that the portfolio and PnL are simulated. It must not imply that practice trades are executed on Mainnet or that a user has earned withdrawable money.
+
+Core product loop:
+PASTE CA -> INSPECT TOKEN -> OPEN PRACTICE POSITION -> TRACK -> CLOSE -> REVIEW PnL -> CUSTOMIZE CARD -> SHARE
+
+Brand direction:
+- Name: DEGENLAB
+- Tagline: TRADE. LEARN. IMPROVE.
+- Visual style: near-black background, neon green primary accent, restrained violet secondary accent, sharp typography, compact trading-terminal layout.
+- Card style: dark premium card, token identity, entry/current or exit price, PnL, small chart, holding time, share reference, visible PRACTICE / SIMULATED label.
+- Card verification: every card rendered from a real practice position is a verified DegenLab card, including cards whose display PnL was adjusted in the editor.
+
+============================================================
+2. IMPORTANT NETWORK DESIGN — DO NOT MIX CLUSTERS
+============================================================
+
+A Mainnet token mint and a Devnet wallet are not interchangeable. A real Solana Mainnet CA cannot be bought with Devnet SOL. Mainnet and Devnet are separate clusters with separate ledgers and token mints. Devnet SOL and Devnet tokens have no financial value, and Devnet can be reset.
+
+Use two clearly separate modes:
+
+A) MAINNET MARKET LOOKUP + PRACTICE LEDGER (MVP)
+- User pastes a real Mainnet token mint address.
+- The app reads public Mainnet metadata and available market-price data only.
+- The user can open/close a practice position using virtual credits held in the app database.
+- No wallet connection, signing, token transfer, swap, deposit, withdrawal or custody is required.
+- The app must label all positions and cards as PRACTICE / SIMULATED.
+
+B) DEVNET WALLET LAB (LATER, OPTIONAL)
+- A separate educational screen can inspect a user-supplied public Devnet address and show its Devnet SOL/test-token balance.
+- Only Devnet mint addresses and Devnet RPC data are accepted in this mode.
+- Never represent Devnet SOL as a deposit, payment, investment or withdrawable balance.
+- Never store seed phrases or private keys. Never ask users to paste them into Telegram.
+- Do not use a Mainnet CA in this mode. Show a clear network-mismatch error.
+- Keep this mode read-only in the first release. If transaction-signing demos are added later, they must be signed by the user's own wallet and remain Devnet-only.
+
+Do not create a fake bridge between Devnet funding and Mainnet market execution. It does not exist.
+
+============================================================
+3. PRODUCT RULES AND TRUST REQUIREMENTS
+============================================================
+
+1. This is a market-practice app, not a live trading terminal.
+2. No real-money deposits, withdrawals, cash-outs, stakes, prizes or transferable balances.
+3. No private-key or seed-phrase collection. No bot-controlled wallet custody.
+4. No actual Mainnet swaps or transactions in the MVP.
+5. The app must display the mode/network on the token screen, portfolio, trade receipt and every generated card.
+7. The practice ledger is the source of recorded trades, balances and leaderboard scores. Ledger rows stay immutable. The card editor may compose display metrics on top of a frozen ledger snapshot.
+8. Card profit adjuster: the user sets a target PnL amount or a target PnL percent. The editor recalculates every dependent display field so the card math stays consistent (exit/current price, PnL amount, PnL percent, position value, and matching 7D/portfolio stats). Edited cards remain verified DegenLab cards. They keep the PRACTICE / SIMULATED badge and the verified share/QR mark. They receive no SAMPLE overlay and they stay eligible for public share and verification.
+9. Users may customize the card theme, color palette, layout, background, avatar, display name, caption and chart style.
+10. A token being unknown, new or unverified is not proof that it is malicious. Present facts separately from risk indicators.
+11. Show the data provider and quote timestamp. If market data is stale or missing, do not fabricate a quote or calculate a fresh PnL.
+12. Use privacy-by-default settings. A user's profile and positions should be private until that user explicitly shares them.
+
+============================================================
+4. TELEGRAM BOT WORKFLOW
+============================================================
+
+BOT COMMANDS
+/start       Create/load user profile and show main menu
+/help        Explain commands, practice mode and network labels
+/lookup      Start token-address lookup
+/portfolio   Show virtual balance and portfolio summary
+/positions  Show open and closed practice positions
+/cards       Show saved card designs and card history
+/leaderboard Show opt-in practice rankings
+/settings    Change display preferences and privacy
+/reset       Request a practice-account reset with confirmation
+
+MAIN MENU (INLINE KEYBOARD)
+[ Paste Token CA ] [ Portfolio ]
+[ Open Positions ] [ PnL Cards ]
+[ Leaderboard ] [ Settings ]
+
+The bot should use inline keyboards for menus and actions. Use normal text prompts only when user input is required, such as a CA, practice amount or custom caption.
+
+WORKFLOW IDS
+Use stable namespaced workflow IDs in code and logs. These are internal identifiers, not user-facing Telegram message IDs.
+
+- onboarding.v1
+  Create profile, explain practice mode, initialize virtual credits, show menu.
+
+- token_lookup.v1
+  Accept a Solana mint address, validate base58/public-key format, select Mainnet market-data adapter, fetch metadata and market snapshot, show token summary.
+
+- practice_order.v1
+  Select Buy or Sell, request practice amount or percentage, validate balance/position, fetch a fresh quote, calculate modeled execution, require confirmation, append ledger event.
+
+- position_detail.v1
+  Display quantity, average entry, mark price, realized PnL, unrealized PnL, fees, quote timestamp and data-source status.
+
+- portfolio.v1
+  Aggregate virtual cash, position value, total practice equity, realized PnL and unrealized PnL.
+
+- card_builder.v1
+  Select an eligible closed/open position, choose template, customize visual fields, run the profit adjuster, preview, save and render a verified image.
+
+- card_share.v1
+  Generate a public share ID only after explicit user confirmation; send the image and optional share URL. Shared cards are verified DegenLab cards.
+
+- leaderboard.v1
+  Show users who opted in. Rank from the practice ledger. Card display overrides do not change rank. Exclude test fixtures.
+
+- devnet_wallet_view.v1 (future, read-only)
+  Accept public Devnet address, query Devnet balance, show network badge and warning. Reject Mainnet/unknown network mismatch.
+
+CALLBACK DATA FORMAT
+Telegram callback_data is limited to 64 bytes. Keep callback payloads short and store longer state server-side.
+
+Recommended compact format:
+dl:v1:<action>:<short-id>
+Examples:
+dl:v1:menu:portfolio
+dl:v1:order:buy
+ dl:v1:order:sell
+ dl:v1:pos:<short-position-id>
+ dl:v1:card:edit:<short-card-id>
+
+Do not put raw token metadata, JSON blobs, user identifiers or long addresses in callback_data. Resolve state from PostgreSQL using the short ID and the Telegram user ID. Verify that the callback belongs to the user who owns the position/card.
+
+Every state-changing callback must be idempotent. A repeated Telegram update must not double-open or double-close a position. Store Telegram update_id and action idempotency keys.
+
+ATTACHING AND SHARING IMAGES
+- Render a PnL card as PNG (recommended 1200 x 675 for landscape or 1080 x 1350 for portrait).
+- Send it using Telegram Bot API sendPhoto.
+- Keep the image under Telegram's documented photo-upload limit.
+- Save the Telegram file_id returned by Telegram for re-sending the same image to that same bot.
+- For new themes or changed trade data, render a new image and store its object-storage key and card version.
+- Store a public share ID separately from the internal database ID. Do not expose sequential database IDs.
+- Shared cards show the DegenLab brand, PRACTICE / SIMULATED label, verified mark, network/source, quote time and a short verification URL or QR code.
+- A verification URL proves DegenLab issued the card for that user and position. Display metrics on the card are the published verified values.
+- Sharing is opt-in. A user can revoke a public card URL.
+
+============================================================
+5. TOKEN LOOKUP AND MARKET DATA
+============================================================
+
+MVP lookup is read-only. A user pastes a Mainnet mint address. The system should:
+1. Validate the address format.
+2. Query the configured Solana Mainnet RPC/provider for mint/account facts.
+3. Query a market-data adapter for token name, ticker, decimals, price, liquidity/volume where available, pool information and timestamp.
+4. Validate that returned records refer to the submitted mint.
+5. Cache public metadata for a short period, but keep price snapshots timestamped.
+6. Clearly display unavailable fields instead of guessing.
+7. Detect stale quotes and prevent a practice order if the quote is outside the configured freshness window.
+
+Use a provider interface so the app can switch market-data vendors without changing the practice ledger:
+
+MarketDataProvider:
+- getTokenMetadata(mint, cluster)
+- getQuote(mint, quoteCurrency, cluster)
+- getCandles(mint, interval, range, cluster)
+- getLiquiditySnapshot(mint, cluster)
+
+Each response should include provider name, source timestamp, fetch timestamp and confidence/status. Do not scrape unknown websites or fetch arbitrary URLs supplied by users.
+
+Use a provider with documented API access and rate limits. Avoid relying on the public Solana RPC endpoint for a high-traffic production service; it is shared and rate-limited. Keep RPC credentials in Koyeb Secrets.
+
+============================================================
+6. PRACTICE TRADE ENGINE AND PnL
+============================================================
+
+MVP orders are database ledger entries only. No on-chain swap is sent.
+
+Practice buy flow:
+- User chooses a token and a virtual-credit amount.
+- Fetch a fresh quote.
+- Apply configurable modeled slippage and fee assumptions.
+- Calculate simulated quantity.
+- Check available virtual cash.
+- In one database transaction, append the BUY event, update the account projection and update the position projection.
+- Return a receipt marked PRACTICE.
+
+Practice sell flow:
+- User chooses an open position and quantity or percentage to close.
+- Fetch a fresh quote.
+- Apply the same modeled execution rules.
+- Check sell quantity does not exceed open quantity.
+- In one database transaction, append the SELL event and update the remaining position.
+- Calculate realized PnL from cost basis and proceeds.
+
+Core calculations:
+- simulated_quantity = (virtual_quote_amount - modeled_fees) / modeled_execution_price
+- average_entry = remaining_cost_basis / remaining_quantity
+- unrealized_pnl = (current_mark_value - remaining_cost_basis) - estimated_close_fees
+- realized_pnl = sell_proceeds - allocated_cost_basis - buy_fees_allocated - sell_fees
+- total_pnl = realized_pnl + unrealized_pnl
+- pnl_percent = (total_pnl / relevant_cost_basis) * 100
+
+Use decimal-safe arithmetic. Do not use JavaScript floating-point numbers for accounting. Use PostgreSQL NUMERIC and a decimal arithmetic library. Store original quote and execution assumptions with every practice trade so results can be reproduced.
+
+For partial sells, allocate cost basis consistently (weighted-average method for MVP). Document the method and use it everywhere. Do not silently change the accounting method later.
+
+Store immutable trade events. Corrections should be represented by explicit reversal/correction events, not by silently editing old records.
+
+============================================================
+7. PnL CARD DESIGN AND IN-BOT EDITOR
+============================================================
+
+DEFAULT CARD LAYOUT
+- DEGENLAB wordmark/logo
+- PRACTICE / SIMULATED badge (always visible)
+- Token name, ticker and shortened mint address
+- Entry price
+- Current price or exit price
+- Realized/unrealized PnL label
+- PnL amount and percentage
+- Position size / practice credits
+- Quantity
+- Holding time
+- Mini chart based on stored price snapshots
+- Quote/source timestamp
+- Share reference and optional QR code
+
+VERIFIED CARD RULE
+Every card generated from a real practice position is a verified DegenLab card. Profit-adjusted cards stay verified. The renderer always draws the PRACTICE / SIMULATED badge and the DegenLab verified mark. There is no USER-EDITED SAMPLE overlay and no second-class card type.
+
+PROFIT ADJUSTER
+The independent input is headline profit. The user sets one of:
+- target_pnl_percent
+- target_pnl_amount
+
+The editor then recomputes every dependent display field from the frozen ledger snapshot so the card stays internally consistent.
+
+Anchor values from the ledger snapshot (held internally, used as the calculation base):
+- average_entry
+- quantity
+- remaining_cost_basis (cost_basis)
+- modeled_fees
+- opened_at / closed_at
+- mint, ticker, token name, cluster
+
+Derived display fields after a profit change (decimal-safe, same formulas everywhere):
+- If the user sets percent:
+    display_pnl_amount = cost_basis * (target_pnl_percent / 100)
+- If the user sets amount:
+    display_pnl_percent = (target_pnl_amount / cost_basis) * 100
+- display_exit_or_mark_price = (cost_basis + display_pnl_amount) / quantity
+- display_position_value = quantity * display_exit_or_mark_price
+- display_pnl_amount and display_pnl_percent always match each other
+- Portfolio-style templates (GMGN-like) scale matching stats from the same profit input: Last 7D PnL amount/%, Total PnL, Unrealized Profits, 7D Token Avg Realized Profits, and the 7D TXs win/loss readout. 7D Total Cost and 7D Token Avg Cost stay tied to cost_basis. SOL Balance stays tied to the practice account snapshot unless the template marks it as a display field driven by the same equity math.
+
+Holding duration, buy/sell timestamps, mint, network, data-source name and PRACTICE / SIMULATED stay as recorded. Chart series are resampled or vertically scaled to the display exit/mark so the sparkline matches the published PnL.
+
+Default on first open of the editor: display metrics equal the live ledger snapshot (no override). Clearing the adjuster restores the ledger snapshot values.
+
+EDITOR CONTROLS (ALLOWED)
+- Profit adjuster: PnL percent and/or PnL amount (linked; editing one updates the other)
+- Theme: Obsidian Green, Violet Circuit, Mono, Solana Gradient
+- Accent color
+- Background texture/pattern
+- Card layout: compact, wide, portrait
+- Avatar or user logo
+- Display name/handle
+- Caption (with length limit and moderation)
+- Chart style: line, area, candles (based on stored snapshots, scaled to display metrics)
+- Show/hide optional non-critical fields
+
+LOCKED FIELDS (ALWAYS)
+- Token mint
+- Cluster / network label
+- Practice/simulated status
+- DegenLab brand and verified mark
+- Verification URL / share reference authenticity
+- Buy/sell timestamps and holding duration from the ledger snapshot
+- Market-data provider name
+
+CARD DATA MODEL
+- card_id (opaque UUID)
+- owner_user_id
+- source_position_id
+- card_template_id
+- theme_json (allowlisted fields only)
+- caption
+- ledger_snapshot_json (frozen position + quote snapshot at card creation/update)
+- display_metrics_json (published card numbers; equal to ledger snapshot until the user adjusts profit)
+- profit_input_mode (percent | amount | null)
+- profit_input_value NUMERIC nullable
+- is_verified BOOLEAN default true
+- display_customized BOOLEAN (internal audit flag; no overlay)
+- version
+- image_object_key
+- telegram_file_id
+- public_share_id (nullable)
+- is_public
+- created_at / updated_at
+
+Render card images server-side from display_metrics_json plus theme_json. Accept profit inputs only through the bot editor. Recalculate dependent fields on the server with decimal arithmetic. Persist ledger_snapshot_json so a card can be rebuilt and so the practice account can still reconcile to the trade ledger.
+
+Public verification page:
+- Confirms DegenLab issued the card
+- Shows the published display metrics (the same numbers as the image)
+- Shows PRACTICE / SIMULATED and the verified mark
+- Owner can revoke the link
+
+Leaderboard and practice-account screens always read the trade ledger. Card display_metrics never write back to positions, trade_events or available_virtual_balance.
+
+============================================================
+8. RECOMMENDED TECH STACK
+============================================================
+
+Runtime: Node.js LTS + TypeScript
+Telegram framework: grammY
+HTTP layer: Hono or a small Fastify server
+Database: PostgreSQL
+ORM: Drizzle ORM
+Validation: Zod
+Decimal math: decimal.js or big.js
+Caching/queue: Redis + BullMQ (add when needed)
+Solana reads: @solana/web3.js or a current Solana SDK, behind an adapter
+Card rendering: Satori + @resvg/resvg-js, or an equivalent server-side SVG-to-PNG renderer
+Object storage: S3-compatible storage for rendered images (optional at MVP scale)
+Tests: Vitest; end-to-end Telegram update tests with mocked Bot API and provider responses
+
+Keep all external providers behind interfaces. Do not bind trade logic directly to one market-data vendor or RPC provider.
+
+============================================================
+9. DATABASE TABLES (STARTER MODEL)
+============================================================
+
+users
+- id UUID primary key
+- telegram_user_id BIGINT unique
+- telegram_username nullable
+- display_name
+- practice_mode_enabled BOOLEAN
+- leaderboard_opt_in BOOLEAN default false
+- created_at, updated_at
+
+practice_accounts
+- id UUID primary key
+- user_id unique foreign key
+- quote_currency (e.g. USD reference)
+- starting_virtual_balance NUMERIC
+- available_virtual_balance NUMERIC
+- created_at, updated_at
+
+watched_tokens
+- id UUID primary key
+- cluster
+- mint_address
+- token_name, ticker, decimals
+- metadata_json
+- last_verified_at
+
+price_snapshots
+- id UUID primary key
+- cluster, mint_address
+- price NUMERIC
+- quote_currency
+- provider
+- source_timestamp
+- fetched_at
+- liquidity NUMERIC nullable
+- metadata_json
+
+positions
+- id UUID primary key
+- user_id
+- mint_address
+- cluster
+- status (OPEN/CLOSED)
+- quantity NUMERIC
+- remaining_cost_basis NUMERIC
+- average_entry NUMERIC
+- opened_at, closed_at nullable
+
+trade_events (append-only)
+- id UUID primary key
+- user_id, position_id
+- event_type (BUY/SELL/REVERSAL)
+- idempotency_key unique
+- mint_address, cluster
+- quantity NUMERIC
+- execution_price NUMERIC
+- gross_value NUMERIC
+- fees NUMERIC
+- slippage_assumption NUMERIC
+- quote_snapshot_id
+- created_at
+
+card_templates
+- id UUID primary key
+- name
+- theme_schema_json
+- is_active
+
+pnl_cards
+- id UUID primary key
+- user_id, position_id
+- template_id
+- theme_json
+- caption
+- ledger_snapshot_json
+- display_metrics_json
+- profit_input_mode (percent | amount | null)
+- profit_input_value NUMERIC nullable
+- is_verified BOOLEAN default true
+- display_customized BOOLEAN default false
+- version
+- image_object_key
+- telegram_file_id
+- public_share_id unique nullable
+- is_public BOOLEAN
+- created_at, updated_at
+
+telegram_updates
+- update_id BIGINT primary key
+- received_at
+- processed_at nullable
+- status
+
+============================================================
+10. CODEBASE STRUCTURE
+============================================================
+
+ degenlab/
+ |-- apps/
+ |   |-- bot/
+ |   |   |-- src/
+ |   |   |   |-- handlers/
+ |   |   |   |-- conversations/
+ |   |   |   |-- keyboards/
+ |   |   |   |-- middleware/
+ |   |   |   |-- workflows/
+ |   |-- api/
+ |       |-- src/
+ |           |-- routes/
+ |           |-- health/
+ |-- packages/
+ |   |-- database/
+ |   |-- ledger/
+ |   |-- pnl/
+ |   |-- market-data/
+ |   |-- solana-adapter/
+ |   |-- card-renderer/
+ |   |-- shared-types/
+ |-- workers/
+ |   |-- quote-refresh/
+ |   |-- card-render/
+ |-- tests/
+ |-- infra/
+ |   |-- Dockerfile
+ |   |-- koyeb.yaml (optional if using supported config workflow)
+ |-- .env.example
+ |-- README.md
+ |-- SECURITY.md
+ |-- LICENSE
+ |-- package.json
+ |-- pnpm-workspace.yaml
+ |-- tsconfig.base.json
+
+============================================================
+11. KOYEB DEPLOYMENT PLAN
+============================================================
+
+MVP deployment:
+- Deploy from GitHub or a Dockerfile to Koyeb.
+- Use one Koyeb Web Service for the Telegram webhook and health endpoint.
+- Bind the HTTP server to 0.0.0.0 and the configured PORT.
+- Expose HTTPS through the Koyeb service domain.
+- Register the Telegram webhook with a long random secret token.
+- Validate the X-Telegram-Bot-Api-Secret-Token header before processing updates.
+- Add GET /healthz for service health checks.
+- Use managed PostgreSQL for durable data. Do not rely on a container's local filesystem for database persistence.
+- Add Redis and a separate Koyeb Worker service only when background quote refresh/card jobs need it.
+- Use Koyeb Secrets for credentials.
+
+Suggested environment variables:
+NODE_ENV=production
+PORT=8000
+BOT_TOKEN=<Telegram bot token stored as secret>
+TELEGRAM_WEBHOOK_SECRET=<long random secret>
+PUBLIC_BASE_URL=https://<your-koyeb-domain>
+DATABASE_URL=<managed PostgreSQL connection string>
+REDIS_URL=<optional Redis connection string>
+SOLANA_MAINNET_RPC_URL=<provider URL stored as secret>
+SOLANA_DEVNET_RPC_URL=<optional devnet URL stored as secret>
+MARKET_DATA_API_KEY=<optional provider key stored as secret>
+PRACTICE_STARTING_BALANCE=10000
+QUOTE_MAX_AGE_SECONDS=30
+ENABLE_DEVNET_WALLET_VIEW=false
+
+Never commit .env files or API keys. Provide .env.example with placeholders only.
+
+Koyeb deployment checks:
+- Build succeeds from a clean GitHub checkout.
+- Webhook receives Telegram updates over HTTPS.
+- Secret header validation works.
+- /healthz returns success only when the app is ready.
+- Database migrations run as a controlled release step, not on every request.
+- App survives restart without losing users, balances, positions or cards.
+- Duplicate Telegram updates do not duplicate ledger entries.
+- Logs redact bot tokens, secret values and user-sensitive data.
+
+============================================================
+12. SECURITY AND RELIABILITY CHECKLIST
+============================================================
+
+- Verify webhook secret header.
+- Validate Telegram user identity for every callback.
+- Enforce per-user and per-IP rate limits.
+- Validate CA/mint input; cap input length.
+- Never fetch arbitrary user-supplied URLs.
+- Set strict timeouts and retries for market-data providers.
+- Respect provider rate limits; cache token metadata separately from live prices.
+- Mark stale quotes and fail closed when a new practice order cannot get a fresh quote.
+- Use database transactions for all balance/position changes.
+- Use idempotency keys and unique constraints for order actions.
+- Use NUMERIC/decimal arithmetic for all balances and PnL.
+- Keep immutable trade events.
+- Do not log secrets or raw sensitive payloads.
+- Escape user captions before rendering HTML/Telegram text.
+- Restrict image uploads to safe content types and size limits.
+- Use object-storage signed URLs or controlled public URLs for shared cards.
+- Allow users to revoke shared-card links and opt out of leaderboards.
+- Add admin audit logs for resets and moderation actions.
+
+============================================================
+13. MVP ACCEPTANCE CRITERIA
+============================================================
+
+The first public test release is ready when:
+
+1. A user can start the bot and receive a unique practice account.
+2. A user can paste a valid Mainnet Solana mint address and receive a token report based on read-only data.
+3. An invalid address, unsupported mint or unavailable market-data response produces a clear error, not invented data.
+4. A user can open a practice position with virtual credits.
+5. A user can partially or fully close a practice position.
+6. Portfolio balance, quantity, average entry and PnL reconcile with the immutable trade ledger.
+7. Repeated Telegram callbacks cannot duplicate a buy or sell.
+8. The bot can generate a verified PnL card from ledger data and a timestamped market snapshot.
+9. Card style fields and the profit adjuster can change published display metrics. Recorded trade metrics, balances and leaderboard scores stay on the ledger.
+10. A profit-adjusted card stays verified. Percent and amount stay in sync. Dependent prices and stats recalculate on the server. The image shows PRACTICE / SIMULATED and the verified mark.
+11. A user can share a verified card and revoke its public link. The verification URL confirms DegenLab issued the card and shows the published display metrics.
+12. A user can opt in or out of the leaderboard.
+13. The service can restart on Koyeb without losing persistent data.
+14. Automated tests cover partial closes, fees, stale quotes, duplicate updates, rounding, card-data integrity, profit-adjuster linked percent/amount, dependent-field recalc, and verified status on edited cards.
+
+============================================================
+14. BUILD ORDER
+============================================================
+
+SPRINT 1 — Foundation
+- Set up TypeScript monorepo, grammY bot, webhook server and Koyeb Docker deployment.
+- Add PostgreSQL schema and migrations.
+- Implement /start, /help, /settings and health endpoint.
+
+SPRINT 2 — Token lookup
+- Add Solana mint validation.
+- Build market-data provider interface.
+- Add token summary and timestamped quote snapshots.
+
+SPRINT 3 — Practice ledger
+- Add virtual account balance.
+- Add buy/sell practice flow.
+- Add immutable event ledger and decimal PnL calculations.
+- Add portfolio and position pages.
+
+SPRINT 4 — PnL cards
+- Build the renderer and default template (including the GMGN-style profit card).
+- Add the style editor and the profit adjuster (linked percent/amount, server-side dependent-field recalc).
+- Persist ledger_snapshot_json and display_metrics_json. Mark every position-backed card is_verified=true.
+- Send images with Telegram sendPhoto.
+- Add share IDs, verified public card route and revoke feature.
+
+SPRINT 5 — Quality and release
+- Add rate limits, audit logs, privacy settings and leaderboard opt-in.
+- Complete acceptance tests.
+- Deploy staging on Koyeb, test bot updates and restart behavior, then publish the open-source repository.
+
+============================================================
+15. OFFICIAL TECHNICAL REFERENCES
+============================================================
+
+Solana clusters and the Devnet/Mainnet distinction:
+https://solana.com/docs/references/clusters
+
+Solana Devnet airdrops and faucet information:
+https://solana.com/developers/cookbook/development/airdrops-and-faucets
+
+Solana production readiness and RPC guidance:
+https://solana.com/docs/tools/production-readiness
+
+Telegram Bot API (webhooks, inline keyboards, sendPhoto):
+https://core.telegram.org/bots/api
+
+Telegram bot workflow and keyboard guidance:
+https://core.telegram.org/bots/guidelines
+
+Koyeb build and deployment methods:
+https://www.koyeb.com/docs/build-and-deploy
+
+Koyeb environment variables and Secrets:
+https://www.koyeb.com/docs/build-and-deploy/environment-variables
+
+Koyeb GitHub deployment and health-check configuration:
+https://www.koyeb.com/docs/build-and-deploy/deploy-with-git
+
+END OF ENGINEERING CONTEXT

@@ -1,0 +1,29 @@
+{
+  "name": "degenlab",
+  "private": true,
+  "version": "1.0.0",
+  "description": "DegenLab — Telegram-native Solana market-practice bot",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @degenlab/bot dev",
+    "build": "pnpm --filter @degenlab/bot build",
+    "start": "pnpm --filter @degenlab/bot start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate": "pnpm --filter @degenlab/database migrate",
+    "typecheck": "tsc -b --pretty"
+  },
+  "devDependencies": {
+    "@degenlab/market-data": "workspace:*",
+    "@degenlab/pnl": "workspace:*",
+    "@degenlab/shared-types": "workspace:*",
+    "@degenlab/solana-adapter": "workspace:*",
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

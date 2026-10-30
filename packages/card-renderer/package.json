@@ -1,0 +1,19 @@
+{
+  "name": "@degenlab/card-renderer",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@degenlab/pnl": "workspace:*",
+    "@degenlab/shared-types": "workspace:*",
+    "@resvg/resvg-js": "^2.6.2",
+    "qrcode": "^1.5.4",
+    "satori": "^0.15.2",
+    "sharp": "^0.34.1"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5"
+  }
+}
